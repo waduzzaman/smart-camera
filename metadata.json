@@ -1,0 +1,5 @@
+{
+  "name": "Web Camera App",
+  "description": "A modern, high-end Web Camera application with auto-naming and glassmorphism UI.",
+  "requestFramePermissions": ["camera"]
+}
