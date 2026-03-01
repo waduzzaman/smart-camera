@@ -16,22 +16,24 @@ export default function CameraPage() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const [facingMode, setFacingMode] =
-    useState<"user" | "environment">("environment");
+  const [facingMode, setFacingMode] = useState<"user" | "environment">(
+    "environment",
+  );
 
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [isFlashing, setIsFlashing] = useState(false);
 
   // ✅ Lazy init → no effect needed
   const [sequenceNumber, setSequenceNumber] = useState<number>(() =>
-    getNextSequenceNumber()
+    getNextSequenceNumber(),
   );
 
-  const [lastCapturedImage, setLastCapturedImage] =
-    useState<string | null>(() => {
+  const [lastCapturedImage, setLastCapturedImage] = useState<string | null>(
+    () => {
       if (typeof window === "undefined") return null;
       return localStorage.getItem("camera_last_image");
-    });
+    },
+  );
 
   const [useCustomPrefix, setUseCustomPrefix] = useState(false);
   const [customPrefix, setCustomPrefix] = useState("");
@@ -77,9 +79,7 @@ export default function CameraPage() {
   }, [facingMode]);
 
   const toggleCamera = () => {
-    setFacingMode((prev) =>
-      prev === "user" ? "environment" : "user"
-    );
+    setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
   };
 
   const capturePhoto = () => {
@@ -103,15 +103,12 @@ export default function CameraPage() {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     ctx.restore();
 
-    const dataUrl = canvas.toDataURL(
-      "image/jpeg",
-      jpegQuality / 100
-    );
+    const dataUrl = canvas.toDataURL("image/jpeg", jpegQuality / 100);
 
     const fileName = generateFileName(
       useCustomPrefix,
       customPrefix,
-      sequenceNumber
+      sequenceNumber,
     );
 
     // ✅ Save last used number
@@ -174,21 +171,21 @@ export default function CameraPage() {
       </AnimatePresence>
 
       <div className="absolute bottom-10 flex items-center gap-8 z-20">
-      {lastCapturedImage ? (
-  <div className="relative h-14 w-14 rounded-full overflow-hidden border border-white/30">
-    <Image
-      src={lastCapturedImage}
-      alt="preview"
-      fill
-      className="object-cover"
-      unoptimized
-    />
-  </div>
-) : (
-  <div className="h-14 w-14 rounded-full bg-white/10 flex items-center justify-center">
-    <ImageIcon className="h-5 w-5 text-white/40" />
-  </div>
-)}
+        {lastCapturedImage ? (
+          <div className="relative h-14 w-14 rounded-full overflow-hidden border border-white/30">
+            <Image
+              src={lastCapturedImage}
+              alt="preview"
+              fill
+              className="object-cover"
+              unoptimized
+            />
+          </div>
+        ) : (
+          <div className="h-14 w-14 rounded-full bg-white/10 flex items-center justify-center">
+            <ImageIcon className="h-5 w-5 text-white/40" />
+          </div>
+        )}
 
         <button
           onClick={capturePhoto}
