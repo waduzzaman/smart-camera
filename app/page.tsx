@@ -1,35 +1,15 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import {
-  SwitchCamera,
-  Download,
-  Settings2,
-  Image as ImageIcon,
-  AlertCircle,
-  Focus,
-} from "lucide-react";
+import { SwitchCamera, AlertCircle, Image as ImageIcon } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Slider } from "@/components/ui/slider";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 
 import {
   getNextSequenceNumber,
   updateSequenceNumber,
   generateFileName,
 } from "@/lib/naming-utils";
+import Image from "next/image";
 
 export default function CameraPage() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -42,7 +22,7 @@ export default function CameraPage() {
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [isFlashing, setIsFlashing] = useState(false);
 
-  // ✅ Lazy initialization (NO effect needed)
+  // ✅ Lazy init → no effect needed
   const [sequenceNumber, setSequenceNumber] = useState<number>(() =>
     getNextSequenceNumber()
   );
@@ -53,36 +33,27 @@ export default function CameraPage() {
       return localStorage.getItem("camera_last_image");
     });
 
-  const [lastCapturedName, setLastCapturedName] =
-    useState<string | null>(() => {
-      if (typeof window === "undefined") return null;
-      return localStorage.getItem("camera_last_filename");
-    });
-
   const [useCustomPrefix, setUseCustomPrefix] = useState(false);
   const [customPrefix, setCustomPrefix] = useState("");
-  const [jpegQuality, setJpegQuality] = useState(92);
+
+  const [jpegQuality] = useState(92);
 
   // ✅ React 18 safe camera effect
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
 
     const startCamera = async () => {
       try {
         if (streamRef.current) {
-          streamRef.current.getTracks().forEach((track) => track.stop());
+          streamRef.current.getTracks().forEach((t) => t.stop());
         }
 
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode,
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-          },
+          video: { facingMode },
           audio: false,
         });
 
-        if (!isMounted) return;
+        if (!mounted) return;
 
         streamRef.current = stream;
         setPermissionDenied(false);
@@ -91,33 +62,16 @@ export default function CameraPage() {
           videoRef.current.srcObject = stream;
         }
       } catch {
-        try {
-          const fallback =
-            await navigator.mediaDevices.getUserMedia({
-              video: true,
-              audio: false,
-            });
-
-          if (!isMounted) return;
-
-          streamRef.current = fallback;
-          setPermissionDenied(false);
-
-          if (videoRef.current) {
-            videoRef.current.srcObject = fallback;
-          }
-        } catch {
-          if (isMounted) setPermissionDenied(true);
-        }
+        if (mounted) setPermissionDenied(true);
       }
     };
 
     startCamera();
 
     return () => {
-      isMounted = false;
+      mounted = false;
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current.getTracks().forEach((t) => t.stop());
       }
     };
   }, [facingMode]);
@@ -160,20 +114,17 @@ export default function CameraPage() {
       sequenceNumber
     );
 
-    setIsFlashing(true);
-    setTimeout(() => setIsFlashing(false), 150);
+    // ✅ Save last used number
+    updateSequenceNumber(sequenceNumber);
+
+    // ✅ Prepare next number
+    setSequenceNumber((prev) => prev + 1);
 
     setLastCapturedImage(dataUrl);
-    setLastCapturedName(fileName);
+    localStorage.setItem("camera_last_image", dataUrl);
 
-    try {
-      localStorage.setItem("camera_last_image", dataUrl);
-      localStorage.setItem("camera_last_filename", fileName);
-    } catch {}
-
-    const nextSeq = sequenceNumber + 1;
-    setSequenceNumber(nextSeq);
-    updateSequenceNumber(nextSeq);
+    setIsFlashing(true);
+    setTimeout(() => setIsFlashing(false), 150);
 
     downloadImage(dataUrl, fileName);
   };
@@ -188,17 +139,14 @@ export default function CameraPage() {
   };
 
   return (
-    <main className="relative flex h-[100dvh] w-full items-center justify-center bg-black text-white overflow-hidden">
+    <main className="relative flex h-screen w-full items-center justify-center bg-black text-white overflow-hidden">
       <div className="absolute inset-0">
         {permissionDenied ? (
-          <div className="flex h-full items-center justify-center p-6">
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Camera Access Denied</AlertTitle>
-              <AlertDescription>
-                Please enable camera permission in browser settings.
-              </AlertDescription>
-            </Alert>
+          <div className="flex h-full items-center justify-center">
+            <div className="text-center">
+              <AlertCircle className="mx-auto mb-4 h-6 w-6 text-red-500" />
+              Camera access denied.
+            </div>
           </div>
         ) : (
           <video
@@ -206,13 +154,9 @@ export default function CameraPage() {
             autoPlay
             playsInline
             muted
-            className={cn(
-              "h-full w-full object-cover",
-              facingMode === "user" ? "scale-x-[-1]" : "",
-              isFlashing
-                ? "blur-md brightness-110 scale-105"
-                : ""
-            )}
+            className={`h-full w-full object-cover ${
+              facingMode === "user" ? "scale-x-[-1]" : ""
+            }`}
           />
         )}
       </div>
@@ -230,17 +174,21 @@ export default function CameraPage() {
       </AnimatePresence>
 
       <div className="absolute bottom-10 flex items-center gap-8 z-20">
-        {lastCapturedImage ? (
-          <img
-            src={lastCapturedImage}
-            alt="preview"
-            className="h-14 w-14 rounded-full object-cover border border-white/30"
-          />
-        ) : (
-          <div className="h-14 w-14 rounded-full bg-white/10 flex items-center justify-center">
-            <ImageIcon className="h-5 w-5 text-white/40" />
-          </div>
-        )}
+      {lastCapturedImage ? (
+  <div className="relative h-14 w-14 rounded-full overflow-hidden border border-white/30">
+    <Image
+      src={lastCapturedImage}
+      alt="preview"
+      fill
+      className="object-cover"
+      unoptimized
+    />
+  </div>
+) : (
+  <div className="h-14 w-14 rounded-full bg-white/10 flex items-center justify-center">
+    <ImageIcon className="h-5 w-5 text-white/40" />
+  </div>
+)}
 
         <button
           onClick={capturePhoto}
@@ -261,10 +209,4 @@ export default function CameraPage() {
       <canvas ref={canvasRef} className="hidden" />
     </main>
   );
-}
-
-function cn(
-  ...classes: (string | undefined | null | false)[]
-) {
-  return classes.filter(Boolean).join(" ");
 }
